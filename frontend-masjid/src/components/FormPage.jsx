@@ -2,6 +2,8 @@ import { useState } from "react";
 
 function FormPage() {
   const [namaKeluarga, setNamaKeluarga] = useState("");
+  const [jumlahAnggotaKeluarga, setJumlahAnggotaKeluarga] = useState(0);
+  const [tanggal, setTanggal] = useState("");
   const [pemasukan, setPemasukan] = useState(0);
   const [showContinuation, setShowContinuation] = useState(false);
   const [zakatEntries, setZakatEntries] = useState([]);
@@ -9,12 +11,12 @@ function FormPage() {
   const handleInitialSubmit = (e) => {
     e.preventDefault();
 
-    if (!namaKeluarga || pemasukan < 1) {
+    if (!namaKeluarga || jumlahAnggotaKeluarga < 1 || !tanggal) {
       alert("Please fill in all required fields");
       return;
     }
 
-    const entries = Array.from({ length: pemasukan }, () => ({
+    const entries = Array.from({ length: jumlahAnggotaKeluarga }, () => ({
       tipe: "uang",
       jumlah: "",
       satuan: "Rupiah",
@@ -42,6 +44,12 @@ function FormPage() {
 
     setZakatEntries(updatedEntries);
   };
+
+  const handleNamaKeluargaChange = (index, value) => {
+    const updatedEntries = [...zakatEntries];
+    updatedEntries[index].namaKeluarga = value;
+    setZakatEntries(updatedEntries);
+  }
 
   const handleJumlahChange = (index, value) => {
     const updatedEntries = [...zakatEntries];
@@ -75,6 +83,8 @@ function FormPage() {
       totalPemasukan: pemasukan,
       zakatEntries
     });
+
+    console.log("Form submitted:", zakatEntries);
 
     alert("Form submitted successfully!");
   };
@@ -111,21 +121,40 @@ function FormPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="pemasukan" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Total Pemasukan (Jumlah Kategori) <span className="text-red-500">*</span>
+                  <label htmlFor="tanggal" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Tanggal <span className="text-red-500">*</span>
                   </label>
                   <input
-                    id="pemasukan"
-                    type="number"
-                    min={1}
-                    placeholder="Masukkan jumlah kategori pemasukan"
-                    value={pemasukan || ""}
-                    onChange={(e) => setPemasukan(Number(e.target.value))}
+                    id="Tanggal"
+                    type="date"
+                    placeholder="Masukkan tanggal"
+                    value={tanggal || ""}
+                    onChange={(e) => setTanggal(e.target.value)}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none"
                     required
                   />
                   <p className="mt-2 text-xs text-gray-500">
-                    Masukkan jumlah kategori zakat/sedekah yang akan diisi
+                    Masukkan Tanggal
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="jumlah_anggota_keluarga" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Jumlah Anggota Keluarga <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="jumlah_anggota_keluarga"
+                    type="number"
+                    min={0}
+                    max={10}
+                    placeholder="Masukkan jumlah anggota keluarga"
+                    value={jumlahAnggotaKeluarga || ""}
+                    onChange={(e) => setJumlahAnggotaKeluarga(Number(e.target.value))}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none"
+                    required
+                  />
+                  <p className="mt-2 text-xs text-gray-500">
+                    Masukkan jumlah anggota keluarga Anda
                   </p>
                 </div>
 
@@ -144,7 +173,7 @@ function FormPage() {
                       <span className="font-semibold">Nama Keluarga:</span> {namaKeluarga}
                     </p>
                     <p className="text-sm font-medium text-emerald-900">
-                      <span className="font-semibold">Total Kategori:</span> {pemasukan}
+                      <span className="font-semibold">Jumlah Anggota Keluarga:</span> {jumlahAnggotaKeluarga}
                     </p>
                   </div>
                 </div>
@@ -167,6 +196,20 @@ function FormPage() {
                           {entry.tipe.charAt(0).toUpperCase() + entry.tipe.slice(1)}
                         </span>
                       </div>
+
+                      <div>
+                          <label htmlFor={`namaKeluarga-${index}`} className="block text-sm font-semibold text-gray-700 mb-2">
+                            Nama Anggota Keluarga <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            id={`namaKeluarga-${index}`}
+                            type="name"
+                            value={entry.namaKeluarga}
+                            onChange={(e) => handleNamaKeluargaChange(index, e.target.value)}
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none"
+                            required
+                          />
+                        </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
