@@ -35,7 +35,7 @@ function FormPage() {
       updatedEntries[index].satuan = "Rupiah";
       updatedEntries[index].karat = "";
     } else if (value === "beras") {
-      updatedEntries[index].satuan = "Kilogram";
+      updatedEntries[index].satuan = "Liter";
       updatedEntries[index].karat = "";
     } else if (value === "emas") {
       updatedEntries[index].satuan = "Gram";
