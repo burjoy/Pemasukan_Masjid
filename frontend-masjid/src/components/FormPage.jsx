@@ -17,15 +17,21 @@ function FormPage() {
     }
 
     const entries = Array.from({ length: jumlahAnggotaKeluarga }, () => ({
-      tipe: "uang",
+      tipe: "",
       jumlah: "",
-      satuan: "Rupiah",
+      satuan: "",
       karat: ""
     }));
 
     setZakatEntries(entries);
     setShowContinuation(true);
   };
+
+  const handlePemasukanChange = (index, value) => {
+    const updatedEntries = [...zakatEntries];
+    updatedEntries[index].tipe_pemasukan = value;
+    setZakatEntries(updatedEntries);
+  }
 
   const handleTipeChange = (index, value) => {
     const updatedEntries = [...zakatEntries];
@@ -63,6 +69,12 @@ function FormPage() {
     setZakatEntries(updatedEntries);
   };
 
+  const handleInfaqChange = (index, value) => {
+    const updatedEntries = [...zakatEntries];
+    updatedEntries[index].infaq = value;
+    setZakatEntries(updatedEntries);
+  }
+
   const handleFinalSubmit = (e) => {
     e.preventDefault();
 
@@ -91,7 +103,7 @@ function FormPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto my-auto">
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-8 sm:px-8">
             <h2 className="text-3xl font-bold text-white text-center">
@@ -209,7 +221,7 @@ function FormPage() {
                             className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none"
                             required
                           />
-                        </div>
+                      </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
@@ -217,19 +229,38 @@ function FormPage() {
                             Tipe Pemasukan <span className="text-red-500">*</span>
                           </label>
                           <select
-                            id={`tipe-${index}`}
+                            id={`tipe-zakat-${index}`}
+                            value={entry.tipe_pemasukan}
+                            onChange={(e) => handlePemasukanChange(index, e.target.value)}
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none bg-white"
+                            required
+                          >
+                            <option value="">-- Pilih Tipe Zakat --</option>
+                            <option value="Zakat Mal">Zakat Mal</option>
+                            <option value="Zakat Fitrah">Zakat Fitrah</option>
+                            <option value="Fidyah">Fidyah</option>
+                          </select>
+                        </div>
+
+                        <div>
+                        <label htmlFor={`tipe-pemasukan-${index}`} className="block text-sm font-semibold text-gray-700 mb-2">
+                            Tipe Pemasukan <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            id={`tipe-pemasukan-${index}`}
                             value={entry.tipe}
                             onChange={(e) => handleTipeChange(index, e.target.value)}
                             className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none bg-white"
                             required
                           >
+                            <option value="">-- Pilih Tipe Pemasukan --</option>
                             <option value="uang">Uang</option>
                             <option value="beras">Beras</option>
                             <option value="emas">Emas</option>
                           </select>
-                        </div>
+                          </div>
 
-                        <div>
+                        <div className="sm:col-span-2">
                           <label htmlFor={`jumlah-${index}`} className="block text-sm font-semibold text-gray-700 mb-2">
                             Jumlah yang Dikeluarkan ({entry.satuan}) <span className="text-red-500">*</span>
                           </label>
@@ -268,6 +299,22 @@ function FormPage() {
                           </div>
                         )}
                       </div>
+                      <div>
+                          <label htmlFor={`infaq-${index}`} className="block text-sm font-semibold text-gray-700 mb-2">
+                            Infaq (opsional, biarkan di angka 0 bila tidak ada/tidak diberikan) <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            id={`infaq-${index}`}
+                            type="number"
+                            value={entry.infaq}
+                            defaultValue={0}
+                            onChange={(e) => handleInfaqChange(index, e.target.value)}
+                            min="0"
+                            step="1000"
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none"
+                            required
+                          />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -279,7 +326,7 @@ function FormPage() {
                       setShowContinuation(false);
                       setZakatEntries([]);
                     }}
-                    className="w-full sm:w-auto px-6 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-all duration-200"
+                    className="w-full sm:flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-all duration-200 hover:shadow-xl transform hover:-translate-y-0.5"
                   >
                     Kembali
                   </button>
