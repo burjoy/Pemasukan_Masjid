@@ -8,6 +8,7 @@ const port = process.env.PORT || 3000;
 const credentials = JSON.parse(process.env.SERVICE_ACC_CREDS);
 const { google } = require('googleapis');
 const { initGoogleSheets, getSheetsClient } = require('./init/googleAuth');
+const { getLastRow } = require('./get_last_row/getLastRow');
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -66,13 +67,15 @@ app.post('/test-post-data', async (req, res) => {
   try {
     const googleSheets = getSheetsClient();
     const spreadsheetId = process.env.SPREADSHEET_ID;
+    const last_row_response = await getLastRow();
+    console.log('Last row response:', last_row_response);
     const response = await googleSheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Sheet1!A3',
+      range: `Sheet1!A${last_row_response + 1}`,
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [
-          ['Test', 'Data', 'From', 'POST Request']
+          [`Test${last_row_response}`, 'Data', 'From', 'POST Request']
         ],
       },
     });
@@ -83,36 +86,91 @@ app.post('/test-post-data', async (req, res) => {
   }
 });
 
+app.get('/last-row', async(req, res) => {
+  getLastRow();
+});
+
+app.post('/test-form', async (req, res) => {
+  try {
+    const formData = req.body;
+    console.log('Received form data:', formData);
+    for(let index in formData.zakatEntries){
+      console.log(`Entry ${index}:`, formData.zakatEntries[index]);
+    }
+    res.status(200).json({ message: 'Form data received successfully', formData });
+  } catch (error) {
+    console.error('Error processing form data:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
 app.post('/submit-form', async (req, res) => {
   try {
     const formData = req.body;
     console.log('Received form data:', formData);
 
     const googleSheets = getSheetsClient();
+    const last_row_response = await getLastRow();
     const spreadsheetId = process.env.SPREADSHEET_ID;
 
-    // Prepare the data to be appended
-    const values = [
-      [
-        formData.nama_lengkap,
-        formData.jumlah_anggota_keluarga,
-        formData.tipe_zakat,
-        formData.tipe_pemasukan,
-        formData.jumlah_pemasukan,
-        formData.satuan_pemasukan,
-        formData.karat_emas,
-        formData.infaq
-      ]
-    ];
+    // Build all updates in a single data array
+    const dataToUpdate = [];
 
-    // Append the data to the Google Sheet
-    const response = await googleSheets.spreadsheets.values.append({
+    // For each zakatEntry, write a complete row with common and specific data
+    for(let index in formData.zakatEntries){
+      const currentRow = last_row_response + 1 + parseInt(index);
+      console.log(`Entry ${index}:`, formData.zakatEntries[index]);
+
+      // Write common data for this entry
+      const common_values = [[
+        last_row_response + parseInt(index), // Row number
+        formData.nama_lengkap,
+        formData.tanggal,
+        formData.alamat,
+        formData.zakatEntries[index].namaKeluarga, // namaKeluarga from the entry
+      ]];
+
+      dataToUpdate.push({
+        range: `Sheet1!A${currentRow}:E${currentRow}`,
+        values: common_values,
+      });
+
+      let jumlahColumn = '';
+
+      // Determine which column for jumlah based on tipe_pemasukan
+      if(formData.zakatEntries[index].tipe_pemasukan === 'Zakat Fitrah' && formData.zakatEntries[index].tipe === 'uang'){
+        jumlahColumn = 'F';
+      } else if(formData.zakatEntries[index].tipe_pemasukan === 'Zakat Fitrah' && formData.zakatEntries[index].tipe === 'beras'){
+        jumlahColumn = 'G';
+      } else if(formData.zakatEntries[index].tipe_pemasukan === 'Zakat Mal'){
+        jumlahColumn = 'H';
+      } else if(formData.zakatEntries[index].tipe_pemasukan === 'Fidyah'){
+        jumlahColumn = 'J';
+      } else if(formData.zakatEntries[index].tipe_pemasukan === 'Wakaf'){
+        jumlahColumn = 'I';
+      }
+
+      // Add jumlah in the appropriate column for this row
+      dataToUpdate.push({
+        range: `Sheet1!${jumlahColumn}${currentRow}`,
+        values: [[formData.zakatEntries[index].jumlah]],
+      });
+
+      // Add infaq in column K for this row
+      dataToUpdate.push({
+        range: `Sheet1!K${currentRow}`,
+        values: [[formData.zakatEntries[index].infaq]],
+      });
+    }
+
+    // Make a single batchUpdate with all data
+    const response = await googleSheets.spreadsheets.values.batchUpdate({
       spreadsheetId,
-      range: 'Sheet1!A2', // Adjust the range as needed
-      valueInputOption: 'USER_ENTERED',
       resource: {
-        values,
+        valueInputOption: 'USER_ENTERED',
+        data: dataToUpdate,
       },
+      includeValuesInResponse: true,
     });
 
     res.status(200).json({ message: 'Form data submitted successfully', response });
