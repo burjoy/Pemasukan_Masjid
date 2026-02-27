@@ -7,11 +7,12 @@ function FormPage() {
   const [pemasukan, setPemasukan] = useState(0);
   const [showContinuation, setShowContinuation] = useState(false);
   const [zakatEntries, setZakatEntries] = useState([]);
+  const [alamat, setAlamat] = useState("");
 
   const handleInitialSubmit = (e) => {
     e.preventDefault();
 
-    if (!namaKeluarga || jumlahAnggotaKeluarga < 1 || !tanggal) {
+    if (!namaKeluarga || jumlahAnggotaKeluarga < 1 || !tanggal || !alamat) {
       alert("Please fill in all required fields");
       return;
     }
@@ -20,7 +21,8 @@ function FormPage() {
       tipe: "",
       jumlah: "",
       satuan: "",
-      karat: ""
+      karat: "",
+      infaq: 0,
     }));
 
     setZakatEntries(entries);
@@ -75,7 +77,7 @@ function FormPage() {
     setZakatEntries(updatedEntries);
   }
 
-  const handleFinalSubmit = (e) => {
+  const handleFinalSubmit = async (e) => {
     e.preventDefault();
 
     const allFilled = zakatEntries.every(entry => {
@@ -96,9 +98,29 @@ function FormPage() {
       zakatEntries
     });
 
-    console.log("Form submitted:", zakatEntries);
+    const response = await fetch('http://localhost:3000/submit-form', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        nama_lengkap: namaKeluarga,
+        jumlah_anggota_keluarga: jumlahAnggotaKeluarga,
+        alamat: alamat,
+        tanggal: tanggal,
+        zakatEntries
+      }),
+    })
 
-    alert("Form submitted successfully!");
+    const data = await response.json();
+    if(data){
+      console.log('Success:', data);
+      alert("Form submitted successfully!");
+    }
+    else{
+      alert(`There was an error submitting the form, error: ${data.error}`);
+    }
+    console.log("Form submitted:", zakatEntries);
   };
 
   return (
@@ -127,6 +149,21 @@ function FormPage() {
                     placeholder="Masukkan nama keluarga"
                     value={namaKeluarga}
                     onChange={(e) => setNamaKeluarga(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="alamat" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Alamat <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="alamat"
+                    type="text"
+                    placeholder="Masukkan alamat"
+                    value={alamat}
+                    onChange={(e) => setAlamat(e.target.value)}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none"
                     required
                   />
@@ -333,6 +370,7 @@ function FormPage() {
                   <button
                     type="submit"
                     className="w-full sm:flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold py-3 px-6 rounded-lg hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                    onClick={'/test-form'}
                   >
                     Submit
                   </button>
