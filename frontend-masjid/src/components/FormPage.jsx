@@ -77,6 +77,20 @@ function FormPage() {
     setZakatEntries(updatedEntries);
   }
 
+  const handleReset = () => {
+    setNamaKeluarga("");
+    setJumlahAnggotaKeluarga(0);
+    setTanggal("");
+    setPemasukan(0);
+    setShowContinuation(false);
+    setZakatEntries([]);
+    setAlamat("");
+  }
+
+  const return_to_home = () => {
+    window.location.href = '/';
+  }
+
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
 
@@ -113,6 +127,9 @@ function FormPage() {
     else{
       alert(`There was an error submitting the form, error: ${data.error}`);
     }
+
+    handleReset();
+    return_to_home();
   };
 
   return (
