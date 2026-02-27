@@ -92,12 +92,6 @@ function FormPage() {
       return;
     }
 
-    console.log("Final submission:", {
-      namaKeluarga,
-      totalPemasukan: pemasukan,
-      zakatEntries
-    });
-
     const response = await fetch('https://pemasukan-masjid-backend.vercel.app/submit-form', {
       method: 'POST',
       headers: {
@@ -114,13 +108,11 @@ function FormPage() {
 
     const data = await response.json();
     if(data){
-      console.log('Success:', data);
       alert("Form submitted successfully!");
     }
     else{
       alert(`There was an error submitting the form, error: ${data.error}`);
     }
-    console.log("Form submitted:", zakatEntries);
   };
 
   return (
