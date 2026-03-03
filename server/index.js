@@ -93,11 +93,26 @@ app.get('/last-row', async(req, res) => {
 app.post('/test-form', async (req, res) => {
   try {
     const formData = req.body;
+    const googleSheets = getSheetsClient();
+    const last_row_response = await getLastRow();
+    const spreadsheetId = process.env.SPREADSHEET_ID;
+    let valueToAppend = [formData.nama_lengkap, formData.tanggal, formData.alamat];
+    formData.familyEntries.forEach(entry => {
+      valueToAppend.push(entry.namaKeluarga);
+    });
+    const response = await googleSheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: `Sheet1!A${last_row_response + 1}`,
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [valueToAppend],
+      },
+    });
     console.log('Received form data:', formData);
-    for(let index in formData.zakatEntries){
-      console.log(`Entry ${index}:`, formData.zakatEntries[index]);
+    for(let index in formData.familyEntries){
+      console.log(`Entry ${index}:`, formData.familyEntries[index]);
     }
-    res.status(200).json({ message: 'Form data received successfully', formData });
+    res.status(200).json({ message: 'Form data received successfully', success: response });
   } catch (error) {
     console.error('Error processing form data:', error);
     res.status(500).json({ error: 'Internal Server Error' });
@@ -115,53 +130,97 @@ app.post('/submit-form', async (req, res) => {
 
     // Build all updates in a single data array
     const dataToUpdate = [];
-
-    // For each zakatEntry, write a complete row with common and specific data
-    for(let index in formData.zakatEntries){
-      const currentRow = last_row_response + 1 + parseInt(index);
-      console.log(`Entry ${index}:`, formData.zakatEntries[index]);
-
-      // Write common data for this entry
-      const common_values = [[
-        last_row_response + parseInt(index), // Row number
-        formData.nama_lengkap,
-        formData.tanggal,
-        formData.alamat,
-        formData.zakatEntries[index].namaKeluarga, // namaKeluarga from the entry
-      ]];
-
-      dataToUpdate.push({
-        range: `Sheet1!A${currentRow}:E${currentRow}`,
-        values: common_values,
-      });
-
-      let jumlahColumn = '';
+    let valueToAppend = [
+      last_row_response, // Row number for the first entry
+      formData.tanggal,
+      formData.nama_lengkap, 
+      // formData.alamat, // Uncomment if you want to include alamat in the sheet
+    ];
+    formData.familyEntries.forEach(entry => {
+      valueToAppend.push(entry.namaKeluarga);
+    });
+    // Append the first row with common data (alamat, nama_lengkap, etc.)
+    dataToUpdate.push({
+      range: `Sheet1!A${last_row_response + 1}:M${last_row_response + 1}`,
+      values: [valueToAppend],
+    });
+    dataToUpdate.push({
+      range: `Sheet1!N${last_row_response + 1}`,
+      values: [[formData.alamat]],
+    });
+    let jumlahColumn = '';
 
       // Determine which column for jumlah based on tipe_pemasukan
-      if(formData.zakatEntries[index].tipe_pemasukan === 'Zakat Fitrah' && formData.zakatEntries[index].tipe === 'uang'){
-        jumlahColumn = 'F';
-      } else if(formData.zakatEntries[index].tipe_pemasukan === 'Zakat Fitrah' && formData.zakatEntries[index].tipe === 'beras'){
-        jumlahColumn = 'G';
-      } else if(formData.zakatEntries[index].tipe_pemasukan === 'Zakat Mal'){
-        jumlahColumn = 'H';
-      } else if(formData.zakatEntries[index].tipe_pemasukan === 'Fidyah'){
-        jumlahColumn = 'J';
-      } else if(formData.zakatEntries[index].tipe_pemasukan === 'Wakaf'){
-        jumlahColumn = 'I';
-      }
+    if(formData.individualZakatEntries[0].tipe_pemasukan === 'Zakat Fitrah' && formData.individualZakatEntries[0].tipe === 'uang'){
+        jumlahColumn = 'O';
+    } else if(formData.individualZakatEntries[0].tipe_pemasukan === 'Zakat Fitrah' && formData.individualZakatEntries[0].tipe === 'beras'){
+        jumlahColumn = 'P';
+    } else if(formData.individualZakatEntries[0].tipe_pemasukan === 'Zakat Mal'){
+        jumlahColumn = 'R';
+    } else if(formData.individualZakatEntries[0].tipe_pemasukan === 'Fidyah'){
+        jumlahColumn = 'S';
+    } else if(formData.individualZakatEntries[0].tipe_pemasukan === 'Wakaf'){
+        jumlahColumn = 'T';
+    }
 
-      // Add jumlah in the appropriate column for this row
-      dataToUpdate.push({
-        range: `Sheet1!${jumlahColumn}${currentRow}`,
-        values: [[formData.zakatEntries[index].jumlah]],
-      });
+    dataToUpdate.push({
+        range: `Sheet1!${jumlahColumn}${last_row_response + 1}`,
+        values: [[formData.individualZakatEntries[0].jumlah]],
+    });
 
       // Add infaq in column K for this row
-      dataToUpdate.push({
-        range: `Sheet1!K${currentRow}`,
-        values: [[formData.zakatEntries[index].infaq]],
-      });
-    }
+    dataToUpdate.push({
+        range: `Sheet1!Q${last_row_response + 1}`, // masukkin nilai infaq ke current row, nilainya last row + 1
+        values: [[formData.individualZakatEntries[0].infaq]],
+    });
+
+    
+    // For each familyEntry, write a complete row with common and specific data
+    // for(let index in formData.familyEntries){
+    //   const currentRow = last_row_response + 1 + parseInt(index);
+    //   console.log(`Entry ${index}:`, formData.familyEntries[index]);
+
+    //   // Write common data for this entry
+    //   const common_values = [[
+    //     last_row_response + parseInt(index), // Row number
+    //     formData.nama_lengkap,
+    //     formData.tanggal,
+    //     formData.alamat,
+    //     formData.zakatEntries[index].namaKeluarga, // namaKeluarga from the entry
+    //   ]];
+
+    //   dataToUpdate.push({
+    //     range: `Sheet1!A${currentRow}:E${currentRow}`,
+    //     values: common_values,
+    //   });
+
+    //   let jumlahColumn = '';
+
+    //   // Determine which column for jumlah based on tipe_pemasukan
+    //   if(formData.zakatEntries[index].tipe_pemasukan === 'Zakat Fitrah' && formData.zakatEntries[index].tipe === 'uang'){
+    //     jumlahColumn = 'F';
+    //   } else if(formData.zakatEntries[index].tipe_pemasukan === 'Zakat Fitrah' && formData.zakatEntries[index].tipe === 'beras'){
+    //     jumlahColumn = 'G';
+    //   } else if(formData.zakatEntries[index].tipe_pemasukan === 'Zakat Mal'){
+    //     jumlahColumn = 'H';
+    //   } else if(formData.zakatEntries[index].tipe_pemasukan === 'Fidyah'){
+    //     jumlahColumn = 'J';
+    //   } else if(formData.zakatEntries[index].tipe_pemasukan === 'Wakaf'){
+    //     jumlahColumn = 'I';
+    //   }
+
+    //   // Add jumlah in the appropriate column for this row
+    //   dataToUpdate.push({
+    //     range: `Sheet1!${jumlahColumn}${currentRow}`,
+    //     values: [[formData.zakatEntries[index].jumlah]],
+    //   });
+
+    //   // Add infaq in column K for this row
+    //   dataToUpdate.push({
+    //     range: `Sheet1!K${currentRow}`,
+    //     values: [[formData.zakatEntries[index].infaq]],
+    //   });
+    // }
 
     // Make a single batchUpdate with all data
     const response = await googleSheets.spreadsheets.values.batchUpdate({
@@ -173,7 +232,7 @@ app.post('/submit-form', async (req, res) => {
       includeValuesInResponse: true,
     });
 
-    res.status(200).json({ message: 'Form data submitted successfully', response });
+    res.status(200).json({ message: 'Form data submitted successfully', success: response });
   } catch (error) {
     console.error('Error submitting form data to Google Sheets:', error);
     res.status(500).json({ error: 'Internal Server Error' });
