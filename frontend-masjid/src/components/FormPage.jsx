@@ -6,7 +6,8 @@ function FormPage() {
   const [tanggal, setTanggal] = useState("");
   const [pemasukan, setPemasukan] = useState(0);
   const [showContinuation, setShowContinuation] = useState(false);
-  const [zakatEntries, setZakatEntries] = useState([]);
+  const [familyEntries, setFamilyEntries] = useState([]);
+  const [individualZakatEntries, setIndividualZakatEntries] = useState([]);
   const [alamat, setAlamat] = useState("");
 
   const handleInitialSubmit = (e) => {
@@ -25,18 +26,27 @@ function FormPage() {
       infaq: 0,
     }));
 
-    setZakatEntries(entries);
+    const Individualentries = Array.from({ length: 1 }, () => ({
+      tipe: "",
+      jumlah: "",
+      satuan: "",
+      karat: "",
+      infaq: 0,
+    }));
+
+    setFamilyEntries(entries);
+    setIndividualZakatEntries(Individualentries);
     setShowContinuation(true);
   };
 
   const handlePemasukanChange = (index, value) => {
-    const updatedEntries = [...zakatEntries];
+    const updatedEntries = [...individualZakatEntries];
     updatedEntries[index].tipe_pemasukan = value;
-    setZakatEntries(updatedEntries);
+    setIndividualZakatEntries(updatedEntries);
   }
 
   const handleTipeChange = (index, value) => {
-    const updatedEntries = [...zakatEntries];
+    const updatedEntries = [...individualZakatEntries];
     updatedEntries[index].tipe = value;
 
     if (value === "uang") {
@@ -50,31 +60,31 @@ function FormPage() {
       updatedEntries[index].karat = "24";
     }
 
-    setZakatEntries(updatedEntries);
+    setIndividualZakatEntries(updatedEntries);
   };
 
   const handleNamaKeluargaChange = (index, value) => {
-    const updatedEntries = [...zakatEntries];
+    const updatedEntries = [...familyEntries];
     updatedEntries[index].namaKeluarga = value;
-    setZakatEntries(updatedEntries);
+    setFamilyEntries(updatedEntries);
   }
 
   const handleJumlahChange = (index, value) => {
-    const updatedEntries = [...zakatEntries];
+    const updatedEntries = [...individualZakatEntries];
     updatedEntries[index].jumlah = value;
-    setZakatEntries(updatedEntries);
+    setIndividualZakatEntries(updatedEntries);
   };
 
   const handleKaratChange = (index, value) => {
-    const updatedEntries = [...zakatEntries];
+    const updatedEntries = [...individualZakatEntries];
     updatedEntries[index].karat = value;
-    setZakatEntries(updatedEntries);
+    setIndividualZakatEntries(updatedEntries);
   };
 
   const handleInfaqChange = (index, value) => {
-    const updatedEntries = [...zakatEntries];
+    const updatedEntries = [...individualZakatEntries];
     updatedEntries[index].infaq = value;
-    setZakatEntries(updatedEntries);
+    setIndividualZakatEntries(updatedEntries);
   }
 
   const handleReset = () => {
@@ -83,7 +93,8 @@ function FormPage() {
     setTanggal("");
     setPemasukan(0);
     setShowContinuation(false);
-    setZakatEntries([]);
+    setFamilyEntries([]);
+    setIndividualZakatEntries([]);
     setAlamat("");
   }
 
@@ -94,7 +105,7 @@ function FormPage() {
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
 
-    const allFilled = zakatEntries.every(entry => {
+    const allFilled = individualZakatEntries.every(entry => {
       if (entry.tipe === "emas") {
         return entry.jumlah && entry.karat;
       }
@@ -116,15 +127,16 @@ function FormPage() {
         jumlah_anggota_keluarga: jumlahAnggotaKeluarga,
         alamat: alamat,
         tanggal: tanggal,
-        zakatEntries
+        individualZakatEntries,
+        familyEntries
       }),
     })
 
     const data = await response.json();
-    if(data){
+    if(data.success){
       alert("Form submitted successfully!");
     }
-    else{
+    else if (data.error) {
       alert(`There was an error submitting the form, error: ${data.error}`);
     }
 
@@ -150,12 +162,12 @@ function FormPage() {
               <form onSubmit={handleInitialSubmit} className="space-y-6">
                 <div>
                   <label htmlFor="namaKeluarga" className="block text-sm font-semibold text-gray-700 mb-2">
-                    Nama Keluarga <span className="text-red-500">*</span>
+                    Nama Muzakki <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="namaKeluarga"
                     type="text"
-                    placeholder="Masukkan nama keluarga"
+                    placeholder="Masukkan nama muzakki"
                     value={namaKeluarga}
                     onChange={(e) => setNamaKeluarga(e.target.value)}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none"
@@ -241,32 +253,18 @@ function FormPage() {
                     Detail Zakat/Sedekah
                   </h3>
 
-                  {zakatEntries.map((entry, index) => (
+                  {individualZakatEntries.map((entry, index) => (
                     <div
                       key={index}
                       className="bg-gray-50 rounded-xl p-6 space-y-4 border-2 border-gray-200 hover:border-emerald-300 transition-all"
                     >
                       <div className="flex items-center justify-between mb-4">
                         <h4 className="text-lg font-semibold text-gray-700">
-                          Kategori {index + 1}
+                          Zakat Muzakki
                         </h4>
                         <span className="bg-emerald-100 text-emerald-800 text-xs font-medium px-3 py-1 rounded-full">
                           {entry.tipe.charAt(0).toUpperCase() + entry.tipe.slice(1)}
                         </span>
-                      </div>
-
-                      <div>
-                          <label htmlFor={`namaKeluarga-${index}`} className="block text-sm font-semibold text-gray-700 mb-2">
-                            Nama Anggota Keluarga <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            id={`namaKeluarga-${index}`}
-                            type="name"
-                            value={entry.namaKeluarga}
-                            onChange={(e) => handleNamaKeluargaChange(index, e.target.value)}
-                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none"
-                            required
-                          />
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -363,6 +361,33 @@ function FormPage() {
                       </div>
                     </div>
                   ))}
+
+                  {familyEntries.map((entry, index) => (
+                    <div
+                      key={index}
+                      className="bg-gray-50 rounded-xl p-6 space-y-4 border-2 border-gray-200 hover:border-emerald-300 transition-all"
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-lg font-semibold text-gray-700">
+                          Keluarga ke-{index + 1}
+                        </h4>
+                      </div>
+
+                      <div>
+                          <label htmlFor={`namaKeluarga-${index}`} className="block text-sm font-semibold text-gray-700 mb-2">
+                            Nama Anggota Keluarga <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            id={`namaKeluarga-${index}`}
+                            type="name"
+                            value={entry.namaKeluarga}
+                            onChange={(e) => handleNamaKeluargaChange(index, e.target.value)}
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none"
+                            required
+                          />
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 pt-4">
@@ -370,7 +395,7 @@ function FormPage() {
                     type="button"
                     onClick={() => {
                       setShowContinuation(false);
-                      setZakatEntries([]);
+                      setFamilyEntries([]);
                     }}
                     className="w-full sm:flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-all duration-200 hover:shadow-xl transform hover:-translate-y-0.5"
                   >
@@ -379,7 +404,6 @@ function FormPage() {
                   <button
                     type="submit"
                     className="w-full sm:flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold py-3 px-6 rounded-lg hover:from-emerald-700 hover:to-teal-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                    onClick={'/test-form'}
                   >
                     Submit
                   </button>
