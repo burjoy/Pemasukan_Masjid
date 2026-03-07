@@ -155,7 +155,7 @@ app.post('/test-form', async (req, res) => {
 app.post('/submit-form', async (req, res) => {
   try {
     const formData = req.body;
-    console.log('Received form data:', formData);
+    // console.log('Received form data:', formData);
 
     const googleSheets = getSheetsClient();
     const last_row_response = await getLastRow();
