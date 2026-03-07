@@ -4,10 +4,12 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
+const { PDFDocument, rgb } = require('pdf-lib');
+
 const port = process.env.PORT || 3000;
 const credentials = JSON.parse(process.env.SERVICE_ACC_CREDS);
 const { google } = require('googleapis');
-const { initGoogleSheets, getSheetsClient } = require('./init/googleAuth');
+const { initGoogleSheets, getSheetsClient, initGoogleDrive, getDriveClient } = require('./init/googleAuth');
 const { getLastRow } = require('./get_last_row/getLastRow');
 const { drawGrid } = require('./pdf_modification/find-coords');
 const { testCoordinates } = require('./pdf_modification/test-coords');
@@ -20,10 +22,19 @@ app.get('/', async (req, res) => {
   res.send('Welcome to the Masjid Website Backend!');
 });
 
+// initGoogleSheets().then(() => {
+//     app.listen(3000, () => {
+//         console.log('🚀 Server is running on port 3000');
+//     });
+// }).catch(console.error);
+
 initGoogleSheets().then(() => {
+  initGoogleDrive().then(() => {
+    console.log('Google APIs initialized successfully.');
     app.listen(3000, () => {
         console.log('🚀 Server is running on port 3000');
     });
+  }).catch(console.error);
 }).catch(console.error);
 
 app.get('/get-sheet-data', async (req, res) => {
@@ -258,5 +269,111 @@ app.post('/submit-form', async (req, res) => {
   } catch (error) {
     console.error('Error submitting form data to Google Sheets:', error);
     res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.post('/generate-drive-receipt', async (req, res) => {
+  try {
+    // 1. Destructure your exact frontend payload
+    const { 
+      nama_lengkap, 
+      jumlah_anggota_keluarga, 
+      alamat, 
+      tanggal, 
+      individualZakatEntries = [], 
+      familyEntries = [] 
+    } = req.body;
+
+    // 2. Data Processing & Calculation
+    let totalFitrahUang = 0;
+    let totalMal = 0;
+    let totalInfaq = 0;
+    let berasText = '-';
+
+    // Combine all entries to process them easily
+    const allEntries = [...individualZakatEntries, ...familyEntries];
+
+    allEntries.forEach(entry => {
+      // Sum Infaq regardless of entry type
+      if (entry.infaq) totalInfaq += Number(entry.infaq);
+
+      // Categorize Zakat
+      if (entry.tipe_pemasukan === 'Zakat Fitrah') {
+        if (entry.tipe === 'uang') {
+          totalFitrahUang += Number(entry.jumlah);
+        } else if (entry.tipe === 'beras') {
+          // E.g., "12 Liter"
+          berasText = `${entry.jumlah} ${entry.satuan}`; 
+        }
+      } else if (entry.tipe_pemasukan === 'Zakat Mal') {
+        totalMal += Number(entry.jumlah);
+      }
+    });
+
+    // Extract just the names for the family members grid
+    const anggotaNames = familyEntries
+      .map(entry => entry.namaKeluarga)
+      .filter(nama => nama && nama.trim() !== ''); // Removes empty strings
+
+    // 3. Formatters for the PDF
+    const formatRp = (num) => num > 0 ? `Rp ${num.toLocaleString('id-ID')}` : '-';
+    
+    // Convert '2026-03-18' to '18 Maret 2026'
+    const formattedDate = new Date(tanggal).toLocaleDateString('id-ID', {
+      day: 'numeric', month: 'long', year: 'numeric'
+    });
+
+    // 4. Fetch the blank PDF from Google Drive
+    const fileId = process.env.NOTA_ZAKAT_ID; // Replace this
+    const driveClient = getDriveClient();
+    const driveResponse = await driveClient.files.get(
+      { fileId: fileId, alt: 'media' },
+      { responseType: 'arraybuffer' }
+    );
+
+    // 5. Load and Prepare PDF
+    const pdfDoc = await PDFDocument.load(driveResponse.data);
+    const firstPage = pdfDoc.getPages()[0];
+    const textSize = 10;
+    const textColor = rgb(0.2, 0.2, 0.8);
+
+    const writeText = (text, x, y) => {
+      if (text) firstPage.drawText(text.toString(), { x, y, size: textSize, color: textColor });
+    };
+
+    // 6. Fill Data using your perfected coordinates
+    writeText(nama_lengkap, 150, 300);
+    writeText(alamat, 150, 283);
+    writeText(jumlah_anggota_keluarga.toString(), 155, 227);
+    writeText(formattedDate, 382, 120);
+
+    // Fill calculated nominals
+    writeText(formatRp(totalFitrahUang), 155, 260); // Zakat Fitrah (Uang)
+    writeText(formatRp(totalMal), 155, 244);       // Zakat Mal
+    writeText(berasText, 445, 260);                // Zakat Beras
+    writeText(formatRp(totalInfaq), 445, 245);     // Infaq
+
+    // 7. Loop through the family members grid
+    const leftX = 80;
+    const rightX = 360;
+    const yDrops = [212, 197, 179, 163, 148]; 
+
+    anggotaNames.forEach((nama, index) => {
+      if (index < 5) {
+        writeText(nama, leftX, yDrops[index]); // Kiri (1-5)
+      } else if (index >= 5 && index < 10) {
+        writeText(nama, rightX, yDrops[index - 5]); // Kanan (6-10)
+      }
+    });
+
+    // 8. Send the finished PDF back to the client
+    const pdfBytes = await pdfDoc.save();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="Nota_Zakat_2026.pdf"');
+    res.send(Buffer.from(pdfBytes), 200, { success: true });
+
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    res.status(500).send({ error: 'Internal Server Error' });
   }
 });
