@@ -9,6 +9,8 @@ const credentials = JSON.parse(process.env.SERVICE_ACC_CREDS);
 const { google } = require('googleapis');
 const { initGoogleSheets, getSheetsClient } = require('./init/googleAuth');
 const { getLastRow } = require('./get_last_row/getLastRow');
+const { drawGrid } = require('./pdf_modification/find-coords');
+const { testCoordinates } = require('./pdf_modification/test-coords');
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -88,6 +90,26 @@ app.post('/test-post-data', async (req, res) => {
 
 app.get('/last-row', async(req, res) => {
   getLastRow();
+});
+
+app.get('/draw-grid', async (req, res) => {
+  try {
+    await drawGrid();
+    res.status(200).json({ message: 'Grid drawn successfully. Check the server directory for Nota_Zakat_Grid.pdf' });
+  } catch (error) {
+    console.error('Error drawing grid on PDF:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.get('/test-coords', async (req, res) => {
+  try {
+    await testCoordinates();
+    res.status(200).json({ message: 'Test coordinates executed successfully. Check the server directory for Nota_Zakat_Test.pdf' });
+  } catch (error) {
+    console.error('Error testing coordinates on PDF:', error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
 });
 
 app.post('/test-form', async (req, res) => {
