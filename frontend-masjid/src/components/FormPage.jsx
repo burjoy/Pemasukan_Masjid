@@ -9,6 +9,7 @@ function FormPage() {
   const [familyEntries, setFamilyEntries] = useState([]);
   const [individualZakatEntries, setIndividualZakatEntries] = useState([]);
   const [alamat, setAlamat] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleInitialSubmit = (e) => {
     e.preventDefault();
@@ -117,7 +118,26 @@ function FormPage() {
       return;
     }
 
+    setIsLoading(true);
+
     const response = await fetch('https://pemasukan-masjid-backend.vercel.app/submit-form', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        nama_lengkap: namaKeluarga,
+        jumlah_anggota_keluarga: jumlahAnggotaKeluarga,
+        alamat: alamat,
+        tanggal: tanggal,
+        individualZakatEntries,
+        familyEntries
+      }),
+    })
+
+    const year = new Date().getFullYear();
+
+    const reponse_receipt = await fetch('https://pemasukan-masjid-backend.vercel.app/generate-drive-receipt', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -140,11 +160,51 @@ function FormPage() {
       alert(`There was an error submitting the form, error: ${data.error}`);
     }
 
+    if (reponse_receipt.ok) {
+      // Read the response as a BLOB, not JSON
+      const blob = await reponse_receipt.blob();
+      
+      // Create a temporary URL for the blob
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Force the download and give it a dynamic filename
+      link.setAttribute('download', `Nota_Zakat_${namaKeluarga}_${year}.pdf`); 
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up the DOM
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      alert("Form submitted and receipt downloaded successfully!");
+    } else {
+      // If the server threw a 500 error, it likely sent text back, not a PDF
+      const errorText = await reponse_receipt.text();
+      alert(`There was an error generating the receipt, error: ${errorText}`);
+    }
+
     handleReset();
+    setIsLoading(false);
     return_to_home();
   };
 
   return (
+    <>
+    {isLoading && (
+      <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm">
+    
+        {/* The Spinner */}
+        <div className="h-14 w-14 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+        
+        {/* The Text */}
+        <h3 className="mt-5 text-lg font-semibold tracking-wide text-white">
+          Memproses Zakat & Mencetak Nota...
+        </h3>
+      
+      </div>
+    )}
     <div className="min-h-screen bg-gradient-to-br py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto my-auto">
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
@@ -414,6 +474,7 @@ function FormPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 
