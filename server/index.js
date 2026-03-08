@@ -283,12 +283,15 @@ app.post('/generate-drive-receipt', async (req, res) => {
       individualZakatEntries = [], 
       familyEntries = [] 
     } = req.body;
+    // console.log('familyEntries:', familyEntries);
+    // console.log(individualZakatEntries);
 
     // 2. Data Processing & Calculation
     let totalFitrahUang = 0;
     let totalMal = 0;
     let totalInfaq = 0;
     let berasText = '-';
+    let totalFidyah = 0;
 
     // Combine all entries to process them easily
     const allEntries = [...individualZakatEntries, ...familyEntries];
@@ -307,6 +310,8 @@ app.post('/generate-drive-receipt', async (req, res) => {
         }
       } else if (entry.tipe_pemasukan === 'Zakat Mal') {
         totalMal += Number(entry.jumlah);
+      } else if (entry.tipe_pemasukan === 'Fidyah') {
+        totalFidyah += Number(entry.jumlah);
       }
     });
 
@@ -314,6 +319,8 @@ app.post('/generate-drive-receipt', async (req, res) => {
     const anggotaNames = familyEntries
       .map(entry => entry.namaKeluarga)
       .filter(nama => nama && nama.trim() !== ''); // Removes empty strings
+    
+    console.log('anggotaNames for PDF:', anggotaNames);
 
     // 3. Formatters for the PDF
     const formatRp = (num) => num > 0 ? `Rp ${num.toLocaleString('id-ID')}` : '-';
@@ -334,6 +341,9 @@ app.post('/generate-drive-receipt', async (req, res) => {
     // 5. Load and Prepare PDF
     const pdfDoc = await PDFDocument.load(driveResponse.data);
     const firstPage = pdfDoc.getPages()[0];
+    const form = pdfDoc.getForm();
+    const fields = form.getFields();
+    // console.log('Form fields in the PDF:', fields.map(f => f.getName()));
     const textSize = 10;
     const textColor = rgb(0.2, 0.2, 0.8);
 
@@ -341,30 +351,106 @@ app.post('/generate-drive-receipt', async (req, res) => {
       if (text) firstPage.drawText(text.toString(), { x, y, size: textSize, color: textColor });
     };
 
-    // 6. Fill Data using your perfected coordinates
-    writeText(nama_lengkap, 150, 300);
-    writeText(alamat, 150, 283);
-    writeText(jumlah_anggota_keluarga.toString(), 155, 227);
-    writeText(formattedDate, 382, 120);
+    //Algorithm for finding the correct columns because the form fields are not named properly in the PDF, we will just write the field name as the value for each text field to find out which field corresponds to which data point. After we find out the correct fields, we can replace the text with the actual data. Uncomment this to see the actual field names, comment it after you done
+    // fields.forEach(field => {
+    //   const name = field.getName();
+    //   try {
+    //     const textField = form.getTextField(name);
+    //     // We make the text small so long names don't get cut off
+    //     textField.setText(name); 
+    //   } catch (e) {
+    //     // Skips checkboxes or buttons if any exist
+    //     console.log(`Skipping non-text field: ${name}`);
+    //   }
+    // });
 
-    // Fill calculated nominals
-    writeText(formatRp(totalFitrahUang), 155, 260); // Zakat Fitrah (Uang)
-    writeText(formatRp(totalMal), 155, 244);       // Zakat Mal
-    writeText(berasText, 445, 260);                // Zakat Beras
-    writeText(formatRp(totalInfaq), 445, 245);     // Infaq
+    form.getTextField('text_1dlsr').setText(nama_lengkap);
+    form.getTextField('text_2togn').setText(alamat);
+    form.getTextField('text_6mjsu').setText(jumlah_anggota_keluarga.toString());
+    form.getTextField('text_20gbha').setText(formattedDate);
 
-    // 7. Loop through the family members grid
-    const leftX = 80;
-    const rightX = 360;
-    const yDrops = [212, 197, 179, 163, 148]; 
+    form.getTextField('text_3oifr').setText(formatRp(totalFitrahUang));
+    form.getTextField('text_4nso').setText(formatRp(totalMal));
+    form.getTextField('text_7pgjn').setText(berasText);
+    form.getTextField('text_8frfq').setText(formatRp(totalInfaq));
+    form.getTextField('text_5sqli').setText(formatRp(totalFidyah));
+    form.getTextField('text_9qpxc').setText('-');
 
-    anggotaNames.forEach((nama, index) => {
-      if (index < 5) {
-        writeText(nama, leftX, yDrops[index]); // Kiri (1-5)
-      } else if (index >= 5 && index < 10) {
-        writeText(nama, rightX, yDrops[index - 5]); // Kanan (6-10)
+    for (let i = 10; i <= 19; i++) {
+      // This shit start from 10 because the format from pdf forms maker are text_10[random strings] and this ends with text_19[random strings]
+      // 3. Create our Regex to find text_10[letter], text_11[letter], up to text_19[letter]
+      const pattern = new RegExp(`^text_${i}[a-zA-Z]`);
+      const matchedField = fields.find(f => pattern.test(f.getName()));
+
+      if (matchedField) {
+        const exactName = matchedField.getName();
+        const textField = form.getTextField(exactName);
+
+        // 4. Check if we have a family member for this specific slot
+        // (Arrays start at 0, so slot 1 is index 0)
+        const nama = anggotaNames[i - 10]; 
+
+        if (nama) {
+          // We have a name! Fill it in.
+          textField.setText(nama);
+          // console.log(`Filled ${exactName} with ${nama}`);
+        } else {
+          // We are out of names! Explicitly overwrite the placeholder.
+          // You can change '-' to '' if you want it completely invisible.
+          textField.setText('-'); 
+        }
+      } else {
+        console.log(`Warning: Could not find a PDF form box for slot #${i}`);
       }
-    });
+    }
+
+    // anggotaNames.forEach((nama, index) => {
+    //   const targetNumber = index + 10; // Gives us 10, 11, 12... up to 19, because the fields are named text_10, text_11, etc. for the family members
+      
+    //   // 3. Create a Regex to match "text_X" followed immediately by any letter (a-z)
+    //   // The ^ means "starts with". 
+    //   const pattern = new RegExp(`^text_${targetNumber}[a-zA-Z]`);
+      
+    //   // 4. Search the array of all fields for the one that matches this pattern
+    //   const matchedField = fields.find(f => pattern.test(f.getName()));
+    //   console.log(`Looking for field matching pattern ${pattern}:`, matchedField ? matchedField.getName() : 'No match found');
+
+    //   if (matchedField) {
+    //     // 5. We found the exact weird name (e.g., "text_1dlsr")! Now we can fill it.
+    //     const exactName = matchedField.getName();
+    //     const textField = form.getTextField(exactName);
+    //     textField.setText(nama);
+    //   } else {
+    //     console.log(`Could not find a form box for family member #${targetNumber}`);
+    //   }
+    // });
+
+    // 6. Fill Data using your perfected coordinates
+    // writeText(nama_lengkap, 150, 300);
+    // writeText(alamat, 150, 283);
+    // writeText(jumlah_anggota_keluarga.toString(), 155, 227);
+    // writeText(formattedDate, 382, 120);
+
+    // // Fill calculated nominals
+    // writeText(formatRp(totalFitrahUang), 155, 260); // Zakat Fitrah (Uang)
+    // writeText(formatRp(totalMal), 155, 244);       // Zakat Mal
+    // writeText(berasText, 445, 260);                // Zakat Beras
+    // writeText(formatRp(totalInfaq), 445, 245);     // Infaq
+
+    // // 7. Loop through the family members grid
+    // const leftX = 80;
+    // const rightX = 360;
+    // const yDrops = [212, 197, 179, 163, 148]; 
+
+    // anggotaNames.forEach((nama, index) => {
+    //   if (index < 5) {
+    //     writeText(nama, leftX, yDrops[index]); // Kiri (1-5)
+    //   } else if (index >= 5 && index < 10) {
+    //     writeText(nama, rightX, yDrops[index - 5]); // Kanan (6-10)
+    //   }
+    // });
+
+    form.flatten(); // Make the form fields non-editable
 
     // 8. Send the finished PDF back to the client
     const pdfBytes = await pdfDoc.save();
