@@ -4,7 +4,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
-const { PDFDocument, rgb } = require('pdf-lib');
+const { PDFDocument, rgb, TextAlignment, StandardFonts } = require('pdf-lib');
 
 const port = process.env.PORT || 3000;
 const credentials = JSON.parse(process.env.SERVICE_ACC_CREDS);
@@ -195,6 +195,9 @@ app.post('/submit-form', async (req, res) => {
     } else if(formData.individualZakatEntries[0].tipe_pemasukan === 'Wakaf'){
         jumlahColumn = 'T';
     }
+      else if(formData.individualZakatEntries[0].tipe_pemasukan === 'Shadaqah'){
+        jumlahColumn = 'U';
+    }
 
     dataToUpdate.push({
         range: `Sheet1!${jumlahColumn}${last_row_response + 1}`,
@@ -292,6 +295,7 @@ app.post('/generate-drive-receipt', async (req, res) => {
     let totalInfaq = 0;
     let berasText = '-';
     let totalFidyah = 0;
+    let totalShadaqah = 0;
 
     // Combine all entries to process them easily
     const allEntries = [...individualZakatEntries, ...familyEntries];
@@ -313,6 +317,9 @@ app.post('/generate-drive-receipt', async (req, res) => {
       } else if (entry.tipe_pemasukan === 'Fidyah') {
         totalFidyah += Number(entry.jumlah);
       }
+        else if (entry.tipe_pemasukan === 'Shadaqah') {
+        totalShadaqah += Number(entry.jumlah);
+       }
     });
 
     // Extract just the names for the family members grid
@@ -343,6 +350,7 @@ app.post('/generate-drive-receipt', async (req, res) => {
     const firstPage = pdfDoc.getPages()[0];
     const form = pdfDoc.getForm();
     const fields = form.getFields();
+    const timesNewFont = await pdfDoc.embedFont(StandardFonts.TimesRoman);
     // console.log('Form fields in the PDF:', fields.map(f => f.getName()));
     const textSize = 10;
     const textColor = rgb(0.2, 0.2, 0.8);
@@ -364,45 +372,111 @@ app.post('/generate-drive-receipt', async (req, res) => {
     //   }
     // });
 
-    form.getTextField('text_1dlsr').setText(nama_lengkap);
-    form.getTextField('text_2togn').setText(alamat);
-    form.getTextField('text_6mjsu').setText(jumlah_anggota_keluarga.toString());
-    form.getTextField('text_20gbha').setText(formattedDate);
 
-    form.getTextField('text_3oifr').setText(formatRp(totalFitrahUang));
-    form.getTextField('text_4nso').setText(formatRp(totalMal));
-    form.getTextField('text_7pgjn').setText(berasText);
-    form.getTextField('text_8frfq').setText(formatRp(totalInfaq));
-    form.getTextField('text_5sqli').setText(formatRp(totalFidyah));
-    form.getTextField('text_9qpxc').setText('-');
+    const fillField = (fieldName, text, size = 8, alignment = TextAlignment.Left) => {
+      try {
+        const field = form.getTextField(fieldName);
+        field.setText(text);
+        field.setFontSize(size);
+        field.setAlignment(alignment);
+        // This forces the PDF to redraw the box, ignoring Sejda's weird auto-sizing
+        field.updateAppearances(timesNewFont);
+      } catch (e) {
+        console.log(`Could not fill field: ${fieldName}`);
+      }
+    };
 
+    // --- 4. FILL STATIC FIELDS ---
+    // Make sure these names match exactly what you typed in Sejda
+    fillField('text_1dlsr', nama_lengkap, 6);
+    fillField('text_2togn', alamat, 6);
+    fillField('text_6mjsu', jumlah_anggota_keluarga.toString(), 4, TextAlignment.Center);
+    fillField('text_20gbha', formattedDate, 4, TextAlignment.Left);
+
+    // Nominals (Aligning right looks much better for money!)
+    fillField('text_3oifr', formatRp(totalFitrahUang), 1, TextAlignment.Left);
+    fillField('text_4nso', formatRp(totalMal), 1, TextAlignment.Left);
+    fillField('text_7pgjn', berasText, 1, TextAlignment.Left);
+    fillField('text_8frfq', formatRp(totalInfaq), 1, TextAlignment.Left);
+    fillField('text_5sqli', formatRp(totalFidyah), 1, TextAlignment.Left);
+    fillField('text_9qpxc', formatRp(totalShadaqah), 1, TextAlignment.Left); // This is the "Wakaf" field, which we are not using. Feel free to change the placeholder.
+
+    // --- 5. SMART LOOP FOR FAMILY MEMBERS ---
     for (let i = 10; i <= 19; i++) {
-      // This shit start from 10 because the format from pdf forms maker are text_10[random strings] and this ends with text_19[random strings]
-      // 3. Create our Regex to find text_10[letter], text_11[letter], up to text_19[letter]
+      // Find the weird Sejda field name (e.g., text_1dlsr)
       const pattern = new RegExp(`^text_${i}[a-zA-Z]`);
       const matchedField = fields.find(f => pattern.test(f.getName()));
 
       if (matchedField) {
         const exactName = matchedField.getName();
-        const textField = form.getTextField(exactName);
-
-        // 4. Check if we have a family member for this specific slot
-        // (Arrays start at 0, so slot 1 is index 0)
         const nama = anggotaNames[i - 10]; 
-
-        if (nama) {
-          // We have a name! Fill it in.
-          textField.setText(nama);
-          // console.log(`Filled ${exactName} with ${nama}`);
-        } else {
-          // We are out of names! Explicitly overwrite the placeholder.
-          // You can change '-' to '' if you want it completely invisible.
-          textField.setText('-'); 
-        }
-      } else {
-        console.log(`Warning: Could not find a PDF form box for slot #${i}`);
+        
+        // Fill name if it exists, otherwise fill with a dash
+        fillField(exactName, nama ? nama : '-');
       }
     }
+
+
+    // form.getTextField('text_1dlsr').setText(nama_lengkap);
+    // form.getTextField('text_1dlsr').setFontSize(18);
+
+    // form.getTextField('text_2togn').setText(alamat);
+    // form.getTextField('text_2togn').setFontSize(18);
+
+    // form.getTextField('text_6mjsu').setText(jumlah_anggota_keluarga.toString());
+    // form.getTextField('text_6mjsu').setFontSize(18);
+    // form.getTextField('text_6mjsu').setAlignment(TextAlignment.Center);
+
+    // form.getTextField('text_20gbha').setText(formattedDate);
+    // form.getTextField('text_20gbha').setFontSize(18);
+
+    // form.getTextField('text_3oifr').setText(formatRp(totalFitrahUang));
+    // form.getTextField('text_3oifr').setFontSize(18);
+
+    // form.getTextField('text_4nso').setText(formatRp(totalMal));
+    // form.getTextField('text_4nso').setFontSize(18);
+
+    // form.getTextField('text_7pgjn').setText(berasText);
+    // form.getTextField('text_7pgjn').setFontSize(18);
+
+    // form.getTextField('text_8frfq').setText(formatRp(totalInfaq));
+    // form.getTextField('text_8frfq').setFontSize(18);
+
+    // form.getTextField('text_5sqli').setText(formatRp(totalFidyah));
+    // form.getTextField('text_5sqli').setFontSize(18);
+
+    // form.getTextField('text_9qpxc').setText('-');
+    // form.getTextField('text_9qpxc').setFontSize(18);
+
+    // for (let i = 10; i <= 19; i++) {
+    //   // This shit start from 10 because the format from pdf forms maker are text_10[random strings] and this ends with text_19[random strings]
+    //   // 3. Create our Regex to find text_10[letter], text_11[letter], up to text_19[letter]
+    //   const pattern = new RegExp(`^text_${i}[a-zA-Z]`);
+    //   const matchedField = fields.find(f => pattern.test(f.getName()));
+
+    //   if (matchedField) {
+    //     const exactName = matchedField.getName();
+    //     const textField = form.getTextField(exactName);
+
+    //     // 4. Check if we have a family member for this specific slot
+    //     // (Arrays start at 0, so slot 1 is index 0)
+    //     const nama = anggotaNames[i - 10]; 
+
+    //     if (nama) {
+    //       // We have a name! Fill it in.
+    //       textField.setText(nama);
+    //       textField.setFontSize(18);
+    //       // console.log(`Filled ${exactName} with ${nama}`);
+    //     } else {
+    //       // We are out of names! Explicitly overwrite the placeholder.
+    //       // You can change '-' to '' if you want it completely invisible.
+    //       textField.setText('-');
+    //       textField.setFontSize(18); 
+    //     }
+    //   } else {
+    //     console.log(`Warning: Could not find a PDF form box for slot #${i}`);
+    //   }
+    // }
 
     // anggotaNames.forEach((nama, index) => {
     //   const targetNumber = index + 10; // Gives us 10, 11, 12... up to 19, because the fields are named text_10, text_11, etc. for the family members

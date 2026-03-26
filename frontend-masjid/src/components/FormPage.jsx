@@ -343,6 +343,8 @@ function FormPage() {
                             <option value="Zakat Mal">Zakat Mal</option>
                             <option value="Zakat Fitrah">Zakat Fitrah</option>
                             <option value="Fidyah">Fidyah</option>
+                            <option value="Infaq">Infaq</option>
+                            <option value="Shadaqah">Shadaqah</option>
                           </select>
                         </div>
 
