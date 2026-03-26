@@ -2,7 +2,7 @@
 
 A full-stack web application for managing zakat (Islamic charitable contributions) for a mosque. The system allows intake of zakat donations, records them in Google Sheets, and generates detailed PDF receipts.
 
-## 🎯 Project Overview
+## Project Overview
 
 This application provides:
 - **Web-based form** for collecting zakat donations from families and individuals
@@ -11,7 +11,7 @@ This application provides:
 - **Multi-type support** for various zakat forms (cash, rice, gold, etc.)
 - **Family-based entries** to track zakat collections per household
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 Pemasukan_Masjid/
@@ -40,7 +40,7 @@ Pemasukan_Masjid/
         ├── test-coords.js    # PDF coordinate testing
 ```
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Frontend
 - **React** 19.1.1 - UI library
@@ -55,7 +55,7 @@ Pemasukan_Masjid/
 - **Body Parser** - Request parsing middleware
 - **dotenv** 17.2.3 - Environment configuration
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Node.js (v14 or higher)
@@ -103,7 +103,7 @@ npm run dev
 # Frontend runs on http://localhost:5173
 ```
 
-## 📝 Available Scripts
+## Available Scripts
 
 ### Frontend
 - `npm run dev` - Start development server with hot reload
@@ -132,7 +132,7 @@ npm run dev
 |----------|-------------|
 | `POST /test-post-data` | Test data submission to Google Sheets |
 
-## 📋 Form Fields
+## Form Fields
 
 The zakat collection form includes:
 
@@ -153,20 +153,13 @@ The zakat collection form includes:
 - Quantity and unit specification
 - Gold purity (karat) for precious metals
 
-## 🔐 Authentication
-
-The application includes:
-- Google OAuth authentication (via `Login.jsx`)
-- Service account credentials for backend operations
-- Google Sheets API integration for secure data access
-
 ## 📊 Data Storage
 
 - **Primary**: Google Sheets for structured data storage
 - **Secondary**: Google Drive for generated PDF receipts
 - All zakat records are stored with timestamps and personal information
 
-## 🐳 Docker Support
+## Docker Support
 
 A `dockerfile` is included for containerization:
 ```bash
@@ -174,7 +167,7 @@ docker build -t masjid-zakat-app .
 docker run -p 3000:3000 -p 5173:5173 masjid-zakat-app
 ```
 
-## 🔄 Workflow
+## Workflow
 
 1. User accesses the web form
 2. Enters family/household zakat information
@@ -184,7 +177,7 @@ docker run -p 3000:3000 -p 5173:5173 masjid-zakat-app
 6. System generates PDF receipt (Nota Zakat) and stores in Google Drive
 7. User receives confirmation with receipt details
 
-## ⚙️ Configuration
+## Configuration
 
 ### Environment Variables Required:
 - `PORT` - Server port (default: 3000)
@@ -193,7 +186,7 @@ docker run -p 3000:3000 -p 5173:5173 masjid-zakat-app
 - `CREDS` - OAuth credentials for Google APIs
 - `NOTA_ZAKAT_ID` - Google Drive folder ID for storing PDFs
 
-## 🤝 Contributing
+## Contributing
 
 When contributing to this project:
 1. Follow the existing code structure
@@ -201,14 +194,14 @@ When contributing to this project:
 3. Add environment variables to `.env` (never commit secrets)
 4. Test API endpoints before deployment
 
-## 📜 Notes
+## Notes
 
 - The `.env` file contains sensitive credentials - never commit to version control
 - Ensure `.gitignore` includes `.env`, `node_modules/`, and generated PDFs
 - PDF generation coordinates are tested via `/test-coords` endpoint
 - Service account permissions must include Sheets and Drive APIs
 
-## 🆘 Troubleshooting
+## Troubleshooting
 
 **Frontend not connecting to backend:**
 - Ensure backend is running on port 3000
@@ -224,10 +217,6 @@ When contributing to this project:
 - Verify NOTA_ZAKAT_ID folder exists in Google Drive
 - Check pdf-lib installation
 - Review server logs for coordinate errors
-
-## 📝 License
-
-Internal project for Masjid use
 
 ---
 
