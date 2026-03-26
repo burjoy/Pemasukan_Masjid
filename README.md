@@ -114,7 +114,7 @@ npm run dev
 ### Backend
 - `npm start` - Start production server (requires `"start"` script in package.json)
 
-## 📡 API Endpoints
+## API Endpoints
 
 ### GET Endpoints
 
@@ -153,7 +153,7 @@ The zakat collection form includes:
 - Quantity and unit specification
 - Gold purity (karat) for precious metals
 
-## 📊 Data Storage
+## Data Storage
 
 - **Primary**: Google Sheets for structured data storage
 - **Secondary**: Google Drive for generated PDF receipts
